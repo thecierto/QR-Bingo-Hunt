@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Cierto: QR Bingo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #f4f6fb;
+      --surface:   #ffffff;
+      --card:      #f0f2f8;
+      --border:    #d4d8e8;
+      --accent:    #3a5bd9;
+      --accent-lt: #eef1fd;
+      --win:       #16a34a;
+      --win-lt:    #dcfce7;
+      --lose:      #dc2626;
+      --lose-lt:   #fee2e2;
+      --text:      #1a1d2e;
+      --muted:     #6b7280;
+    }
+    body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; }
+
+    @keyframes spin   { to{transform:rotate(360deg)} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes pulse  { 0%,100%{transform:scale(1)} 50%{transform:scale(.94)} }
+    @keyframes shake  { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-7px)} 40%,80%{transform:translateX(7px)} }
+    @keyframes popin  { 0%{transform:scale(.4);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+    @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .hidden { display:none !important; }
+    .page   { min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--bg); }
+    .center { min-height:100vh;display:flex;align-items:center;justify-content:center; }
+    .spinner{ width:38px;height:38px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite; }
+
+    /* ── LOGIN ── */
+    #login-box {
+      background:var(--surface);border:1px solid var(--border);border-radius:20px;
+      padding:44px 40px;max-width:380px;width:100%;text-align:center;
+      animation:fadeUp .45s ease;box-shadow:0 4px 24px rgba(0,0,0,.08);
+    }
+    #login-box.shake { animation:shake .38s ease; }
+    .login-logo  { font-size:48px;margin-bottom:10px; }
+    .login-title { font-size:26px;font-weight:800;color:var(--text);margin-bottom:4px; }
+    .login-sub   { color:var(--muted);font-size:13px;margin-bottom:30px; }
+    .field-group { text-align:left;margin-bottom:14px; }
+    .field-label { display:block;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px; }
+    .field-input {
+      width:100%;background:var(--card);border:1.5px solid var(--border);color:var(--text);
+      border-radius:10px;padding:11px 14px;font-size:14px;font-family:inherit;outline:none;transition:border-color .15s;
+    }
+    .field-input:focus { border-color:var(--accent);background:#fff; }
+    .login-error {
+      color:var(--lose);font-size:13px;margin-bottom:12px;background:var(--lose-lt);
+      border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;display:none;
+    }
+    .login-btn {
+      width:100%;background:var(--accent);border:none;color:#fff;border-radius:10px;
+      padding:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:4px;transition:opacity .15s;
+    }
+    .login-btn:hover { opacity:.88; }
+
+    /* ── WINNER PAGE ── */
+    #screen-winner { background:linear-gradient(135deg,#f0f9ff 0%,#dcfce7 100%); }
+
+    /* Step 1: Registration form */
+    #winner-register-box {
+      background:var(--surface);border:2px solid var(--win);border-radius:24px;
+      padding:40px 36px;max-width:460px;width:100%;
+      box-shadow:0 8px 48px rgba(22,163,74,.18);animation:fadeUp .5s ease;
+    }
+    .reg-trophy    { font-size:56px;text-align:center;margin-bottom:8px; }
+    .reg-title     { font-size:30px;font-weight:900;color:var(--win);text-align:center;letter-spacing:2px;margin-bottom:6px; }
+    .reg-subtitle  { color:var(--muted);font-size:15px;text-align:center;margin-bottom:24px;line-height:1.5; }
+    .reg-notice {
+      background:var(--accent-lt);border:1.5px solid #c7d2f9;border-radius:12px;
+      padding:14px 16px;margin-bottom:24px;font-size:13px;color:#374151;line-height:1.6;
+    }
+    .reg-notice strong { color:var(--accent); }
+    .reg-field { margin-bottom:14px; }
+    .reg-label {
+      display:block;color:var(--muted);font-size:11px;font-weight:600;
+      letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;
+    }
+    .reg-input {
+      width:100%;background:var(--card);border:1.5px solid var(--border);color:var(--text);
+      border-radius:10px;padding:12px 14px;font-size:15px;font-family:inherit;outline:none;transition:border-color .15s;
+    }
+    .reg-input:focus { border-color:var(--win);background:#fff; }
+    .reg-input.error { border-color:var(--lose);background:var(--lose-lt); }
+    .reg-error-msg { color:var(--lose);font-size:12px;margin-top:4px;display:none; }
+    .reg-submit-btn {
+      width:100%;background:var(--win);border:none;color:#fff;border-radius:12px;
+      padding:14px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;
+      margin-top:8px;transition:opacity .15s;letter-spacing:.5px;
+    }
+    .reg-submit-btn:hover { opacity:.87; }
+    .reg-submit-btn:disabled { opacity:.45;cursor:not-allowed; }
+
+    /* Step 2: Bingo reveal */
+    #winner-reveal-box {
+      background:var(--surface);border:2px solid var(--win);border-radius:24px;
+      padding:44px 36px;max-width:440px;width:100%;text-align:center;
+      box-shadow:0 8px 48px rgba(22,163,74,.18);animation:fadeUp .5s ease;display:none;
+    }
+    .star-burst { font-size:68px;animation:pulse 1.6s ease-in-out infinite; }
+    .win-badge  { font-size:44px;font-weight:900;color:var(--win);letter-spacing:3px;margin:10px 0 4px; }
+    .win-sub    { color:var(--muted);font-size:16px;margin-bottom:28px; }
+    .winner-name-display {
+      font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px;
+      background:var(--card);border-radius:10px;padding:10px 16px;
+    }
+    .bingo-reveal-box {
+      background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid var(--win);
+      border-radius:18px;padding:28px 24px;margin-bottom:20px;
+    }
+    .bingo-reveal-label { color:var(--win);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:16px; }
+    .bingo-ball-large {
+      display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+      width:130px;height:130px;border-radius:50%;color:#fff;font-family:inherit;margin:0 auto 4px;
+      box-shadow:0 6px 24px rgba(0,0,0,.2);animation:popin .5s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    .bingo-ball-large .ball-letter { font-size:28px;font-weight:900;opacity:.9;line-height:1; }
+    .bingo-ball-large .ball-number { font-size:52px;font-weight:900;line-height:1.05; }
+    .raffle-hint { color:var(--muted);font-size:13px;margin-top:14px; }
+    .win-note {
+      color:var(--muted);font-size:13px;background:var(--card);
+      border-radius:10px;padding:12px 16px;line-height:1.6;
+    }
+
+    /* ── THANKS PAGE ── */
+    #thanks-box {
+      background:var(--surface);border:1px solid var(--border);border-radius:20px;
+      padding:44px 36px;max-width:400px;width:100%;text-align:center;
+      animation:fadeUp .45s ease;box-shadow:0 4px 24px rgba(0,0,0,.07);
+    }
+    .thanks-icon  { font-size:56px;margin-bottom:12px; }
+    .thanks-title { font-size:34px;font-weight:800;margin-bottom:8px; }
+    .thanks-sub   { color:var(--muted);font-size:15px;line-height:1.65;margin-bottom:24px; }
+    .tip-box   { background:var(--accent-lt);border:1px solid #c7d2f9;border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:20px; }
+    .tip-label { color:var(--accent);font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px; }
+    .tip-text  { color:#374151;font-size:14px;line-height:1.6; }
+    .code-tag  { display:inline-block;color:var(--muted);font-size:12px;border:1px solid var(--border);border-radius:20px;padding:4px 16px; }
+
+    /* ── ADMIN ── */
+    #screen-admin { background:var(--bg);min-height:100vh; }
+    #admin-panel  { max-width:980px;margin:0 auto;padding:28px 20px 80px; }
+    .admin-header { display:flex;align-items:center;gap:14px;margin-bottom:28px;flex-wrap:wrap; }
+    .admin-logo   { font-size:36px;line-height:1; }
+    .admin-title  { font-size:22px;font-weight:800;color:var(--text); }
+    .admin-sub    { color:var(--muted);font-size:13px; }
+    .rand-btn {
+      margin-left:auto;background:var(--accent);color:#fff;border:none;border-radius:10px;
+      padding:10px 20px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;transition:opacity .15s;
+    }
+    .rand-btn:hover { opacity:.85; }
+    .tab-bar { display:flex;gap:0;margin-bottom:26px;border-bottom:2px solid var(--border);flex-wrap:wrap; }
+    .tab-btn {
+      background:transparent;border:none;border-bottom:3px solid transparent;color:var(--muted);
+      padding:10px 16px;cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;margin-bottom:-2px;transition:color .15s;
+    }
+    .tab-btn:hover  { color:var(--text); }
+    .tab-btn.active { color:var(--accent);border-bottom-color:var(--accent); }
+
+    .winner-banner {
+      background:var(--win-lt);border:1.5px solid #86efac;border-radius:12px;
+      padding:13px 18px;margin-bottom:22px;font-size:15px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    }
+    .win-name  { color:var(--win);font-weight:700; }
+    .win-pulse { display:inline-block;width:9px;height:9px;background:var(--win);border-radius:50%;animation:blink 1.4s ease-in-out infinite;flex-shrink:0; }
+
+    /* code grid */
+    .code-grid {
+      display:grid;gap:12px;margin-bottom:20px;
+      grid-template-columns:repeat(4,1fr); /* overridden by JS */
+    }
+    .code-card {
+      background:var(--surface);border:1.5px solid var(--border);border-radius:16px;
+      box-shadow:0 1px 4px rgba(0,0,0,.05);
+      aspect-ratio:1/1;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;gap:8px;padding:12px;
+      text-align:center;position:relative;overflow:hidden;
+    }
+    .code-card.is-winner { border-color:var(--win);background:var(--win-lt);box-shadow:0 2px 12px rgba(22,163,74,.12); }
+    .code-num  { font-size:28px;font-weight:900;color:var(--text); }
+    .win-tag   { color:var(--win);font-size:11px;font-weight:700;letter-spacing:1px; }
+    .code-url  { display:none; }
+    .code-actions { display:flex;gap:6px;flex-wrap:wrap;justify-content:center; }
+    .copy-btn {
+      background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:6px;
+      padding:5px 10px;font-size:11px;cursor:pointer;font-family:inherit;font-weight:600;transition:all .15s;
+    }
+    .copy-btn:hover { border-color:var(--accent);color:var(--accent); }
+    .set-win-btn {
+      background:var(--accent);border:none;color:#fff;border-radius:6px;padding:5px 10px;
+      font-size:11px;cursor:pointer;font-family:inherit;font-weight:700;transition:opacity .15s;
+    }
+    .set-win-btn:hover { opacity:.82; }
+    .qr-tip {
+      color:var(--muted);font-size:13px;background:var(--surface);border:1px solid var(--border);
+      border-radius:10px;padding:14px 18px;line-height:1.6;
+    }
+
+    /* logs */
+    .log-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px; }
+    .log-header-left { display:flex;align-items:center;gap:12px;flex-wrap:wrap; }
+    .muted-text { color:var(--muted);font-size:13px; }
+    .clear-btn  {
+      background:#fff;border:1.5px solid #fca5a5;color:var(--lose);border-radius:6px;
+      padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;transition:background .15s;
+    }
+    .clear-btn:hover { background:var(--lose-lt); }
+    .export-btn {
+      background:var(--accent-lt);border:1.5px solid var(--accent);color:var(--accent);
+      border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit;font-weight:600;transition:all .15s;
+    }
+    .export-btn:hover { background:var(--accent);color:#fff; }
+    .empty-msg { color:var(--muted);text-align:center;padding:48px;font-size:14px; }
+
+    /* scan logs */
+    .log-list  { display:flex;flex-direction:column;gap:6px; }
+    .log-row   { display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;font-size:13px;flex-wrap:wrap; }
+    .log-row.win  { background:var(--win-lt);border:1px solid #86efac; }
+    .log-row.miss { background:var(--surface);border:1px solid var(--border); }
+    .log-time  { color:var(--muted);font-size:12px; }
+    .log-code  { font-weight:700; }
+    .log-badge { border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700; }
+    .log-badge.win  { color:var(--win);background:#bbf7d0; }
+    .log-badge.miss { color:var(--muted);background:var(--card); }
+    .log-bingo { font-weight:800;font-size:14px; }
+
+    /* ── WINNERS ROSTER ── */
+    .roster-table { width:100%;border-collapse:collapse;font-size:13px; }
+    .roster-table th {
+      background:var(--card);border:1px solid var(--border);padding:10px 14px;
+      text-align:left;font-size:11px;font-weight:700;color:var(--muted);
+      text-transform:uppercase;letter-spacing:.8px;
+    }
+    .roster-table td {
+      border:1px solid var(--border);padding:11px 14px;vertical-align:middle;
+      background:var(--surface);
+    }
+    .roster-table tr:hover td { background:var(--card); }
+    .roster-ball {
+      display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+      width:44px;height:44px;border-radius:50%;color:#fff;
+    }
+    .roster-ball .ball-letter { font-size:9px;font-weight:800;opacity:.85;line-height:1; }
+    .roster-ball .ball-number { font-size:15px;font-weight:900;line-height:1.1; }
+    .roster-name    { font-weight:700;color:var(--text); }
+    .roster-contact { color:var(--muted);font-size:12px;margin-top:2px; }
+    .roster-time    { color:var(--muted);font-size:12px; }
+    .roster-code    { color:var(--accent);font-weight:700; }
+    .roster-wrap    { overflow-x:auto; }
+
+    /* bingo caller */
+    .bingo-issued-grid { display:flex;flex-wrap:wrap;gap:10px; }
+    .bingo-ball-sm {
+      display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+      width:62px;height:62px;border-radius:50%;color:#fff;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.15);
+    }
+    .bingo-ball-sm .ball-letter { font-size:11px;font-weight:800;opacity:.85;line-height:1; }
+    .bingo-ball-sm .ball-number { font-size:20px;font-weight:900;line-height:1.1; }
+
+    .bingo-caller-wrap { display:flex;flex-direction:column;gap:20px; }
+    .bingo-caller-stage {
+      background:linear-gradient(135deg,#1e3a8a,#3b0764);border-radius:20px;
+      padding:36px 24px;text-align:center;color:#fff;
+    }
+    .caller-label { font-size:12px;font-weight:700;letter-spacing:3px;opacity:.7;text-transform:uppercase;margin-bottom:16px; }
+    .caller-ball {
+      display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+      width:160px;height:160px;border-radius:50%;color:#fff;box-shadow:0 8px 40px rgba(0,0,0,.4);margin:0 auto;
+    }
+    .caller-ball .ball-letter { font-size:32px;font-weight:900;opacity:.88;line-height:1; }
+    .caller-ball .ball-number { font-size:72px;font-weight:900;line-height:1; }
+    .caller-ball.animate { animation:popin .45s cubic-bezier(.34,1.56,.64,1) both; }
+    .caller-idle { color:rgba(255,255,255,.5);font-size:18px;padding:40px 0; }
+    .caller-history { display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;justify-content:center; }
+    .caller-history-ball {
+      display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+      width:52px;height:52px;border-radius:50%;color:#fff;opacity:.72;box-shadow:0 1px 6px rgba(0,0,0,.18);
+    }
+    .caller-history-ball .ball-letter { font-size:10px;font-weight:800;line-height:1; }
+    .caller-history-ball .ball-number { font-size:17px;font-weight:900;line-height:1.1; }
+    .caller-controls { display:flex;gap:10px;flex-wrap:wrap;align-items:center; }
+    .draw-btn {
+      background:var(--accent);color:#fff;border:none;border-radius:12px;padding:14px 32px;
+      font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;transition:opacity .15s;flex:1;min-width:140px;
+    }
+    .draw-btn:hover { opacity:.86; }
+    .draw-btn:disabled { opacity:.35;cursor:not-allowed; }
+    .reset-caller-btn {
+      background:#fff;border:1.5px solid var(--border);color:var(--muted);border-radius:12px;
+      padding:14px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;
+    }
+    .reset-caller-btn:hover { border-color:var(--lose);color:var(--lose); }
+    .bingo-board { display:grid;grid-template-columns:repeat(5,1fr);gap:5px; }
+    .board-header { font-size:20px;font-weight:900;text-align:center;padding:10px 4px;border-radius:8px;color:#fff; }
+    .board-cell {
+      background:var(--surface);border:1.5px solid var(--border);border-radius:7px;padding:7px 4px;
+      text-align:center;font-size:13px;font-weight:700;color:var(--text);transition:all .2s;
+      min-height:36px;display:flex;align-items:center;justify-content:center;
+    }
+    .board-cell.called { color:#fff;border-color:transparent; }
+
+    /* settings */
+    .settings-section { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,0,0,.04); }
+    .settings-title { font-size:15px;font-weight:700;margin-bottom:6px; }
+    .settings-desc  { color:var(--muted);font-size:13px;line-height:1.65;margin-bottom:16px; }
+    .redirect-row   { display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px; }
+    .redirect-input {
+      flex:1;min-width:220px;background:var(--card);border:1.5px solid var(--border);color:var(--text);
+      border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;outline:none;transition:border-color .15s;
+    }
+    .redirect-input:focus { border-color:var(--accent);background:#fff; }
+    .save-btn {
+      background:var(--win);border:none;color:#fff;border-radius:8px;padding:9px 18px;
+      font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .15s;
+    }
+    .save-btn:hover { opacity:.85; }
+    .redirect-status { font-size:12px;color:var(--muted);line-height:1.5;word-break:break-all; }
+    .status-active   { color:var(--win);font-weight:700; }
+    .hl { color:var(--accent);font-weight:700; }
+    .msg-grid { display:grid;grid-template-columns:1fr 1fr;gap:24px; }
+    @media(max-width:640px){ .msg-grid{grid-template-columns:1fr;} }
+    .msg-col  { display:flex;flex-direction:column;gap:12px; }
+    .msg-col-label { font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px; }
+    .msg-field { display:flex;flex-direction:column;gap:4px; }
+    .msg-field label { font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px; }
+    .msg-field input, .msg-field textarea {
+      background:var(--card);border:1.5px solid var(--border);color:var(--text);
+      border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;outline:none;
+      transition:border-color .15s;resize:vertical;
+    }
+    .msg-field input:focus, .msg-field textarea:focus { border-color:var(--accent);background:#fff; }
+    .msg-actions { display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap; }
+    .preview-btn {
+      background:var(--accent-lt);border:1.5px solid var(--accent);color:var(--accent);
+      border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;
+    }
+    .preview-btn:hover { background:var(--accent);color:#fff; }
+
+    /* modal */
+    .modal-backdrop {
+      position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;
+      display:flex;align-items:center;justify-content:center;padding:20px;
+    }
+    .modal-backdrop.hidden { display:none !important; }
+    .modal-shell {
+      background:var(--bg);border-radius:20px;width:100%;max-width:520px;
+      max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:fadeUp .3s ease;
+    }
+    .modal-header {
+      display:flex;align-items:center;justify-content:space-between;padding:16px 20px;
+      border-bottom:1px solid var(--border);position:sticky;top:0;
+      background:var(--bg);z-index:1;border-radius:20px 20px 0 0;
+    }
+    .modal-title { font-size:14px;font-weight:700;color:var(--muted); }
+    .modal-close {
+      background:var(--card);border:1px solid var(--border);color:var(--muted);
+      border-radius:8px;padding:5px 12px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:600;
+    }
+    .modal-close:hover { border-color:var(--lose);color:var(--lose); }
+    .modal-body { padding:24px 20px; }
+
+    /* preview winner */
+    .preview-winner-wrap { background:linear-gradient(135deg,#f0f9ff,#dcfce7);border-radius:16px;padding:32px 24px;text-align:center; }
+    .preview-winner-wrap .star-burst { font-size:52px; }
+    .preview-winner-wrap .win-badge  { font-size:32px; }
+    .preview-winner-wrap .win-sub    { font-size:14px;margin-bottom:16px; }
+    .preview-reg-notice {
+      background:var(--accent-lt);border:1.5px solid #c7d2f9;border-radius:10px;
+      padding:12px 14px;margin-bottom:16px;font-size:12px;color:#374151;line-height:1.6;text-align:left;
+    }
+    .preview-bingo-box {
+      background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid var(--win);
+      border-radius:14px;padding:20px;margin-bottom:12px;
+    }
+    .preview-ball {
+      display:inline-flex;flex-direction:column;align-items:center;justify-content:center;
+      width:90px;height:90px;border-radius:50%;color:#fff;margin:0 auto 4px;box-shadow:0 4px 16px rgba(0,0,0,.18);
+    }
+    .preview-ball .ball-letter { font-size:20px;font-weight:900;opacity:.9;line-height:1; }
+    .preview-ball .ball-number { font-size:36px;font-weight:900;line-height:1.05; }
+    .preview-raffle-hint { color:var(--muted);font-size:12px;margin-top:10px; }
+    .preview-win-note { color:var(--muted);font-size:12px;background:var(--card);border-radius:10px;padding:10px 14px;line-height:1.6; }
+
+    /* preview thanks */
+    .preview-thanks-wrap { background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 24px;text-align:center; }
+    .preview-thanks-wrap .thanks-icon  { font-size:44px;margin-bottom:10px; }
+    .preview-thanks-wrap .thanks-title { font-size:26px;font-weight:800;margin-bottom:6px; }
+    .preview-thanks-wrap .thanks-sub   { color:var(--muted);font-size:14px;line-height:1.65;margin-bottom:18px; }
+    .preview-thanks-wrap .tip-box      { background:var(--accent-lt);border:1px solid #c7d2f9;border-radius:10px;padding:12px 16px;text-align:left;margin-bottom:14px; }
+    .preview-thanks-wrap .tip-label    { color:var(--accent);font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px; }
+    .preview-thanks-wrap .tip-text     { color:#374151;font-size:13px;line-height:1.6; }
+
+    /* toggle switch */
+    .code-count-btn {
+      background:var(--card);border:2px solid var(--border);color:var(--text);
+      border-radius:12px;padding:14px 28px;font-size:15px;font-weight:700;cursor:pointer;
+      font-family:inherit;transition:all .15s;text-align:center;line-height:1.5;
+    }
+    .code-count-btn:hover { border-color:var(--accent);color:var(--accent); }
+    .code-count-btn.active { background:var(--accent-lt);border-color:var(--accent);color:var(--accent); }
+
+    /* toggle switch */
+    .toggle-wrap  { display:flex;align-items:center;gap:10px;cursor:pointer;flex-shrink:0; }
+    .toggle-wrap input { display:none; }
+    .toggle-track {
+      width:48px;height:26px;background:var(--border);border-radius:99px;
+      position:relative;transition:background .2s;flex-shrink:0;
+    }
+    .toggle-wrap input:checked ~ .toggle-track { background:var(--win); }
+    .toggle-thumb {
+      position:absolute;top:3px;left:3px;width:20px;height:20px;
+      background:#fff;border-radius:50%;transition:transform .2s;
+      box-shadow:0 1px 4px rgba(0,0,0,.2);
+    }
+    .toggle-wrap input:checked ~ .toggle-track .toggle-thumb { transform:translateX(22px); }
+    .toggle-label { font-size:13px;font-weight:700;color:var(--muted);min-width:24px; }
+    .toggle-wrap input:checked ~ .toggle-label { color:var(--win); }
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="screen-loading" class="center"><div class="spinner"></div></div>
+
+<!-- Login -->
+<div id="screen-login" class="page hidden">
+  <div id="login-box">
+    <div class="login-logo">🔍</div>
+    <div class="login-title">Admin Login</div>
+    <div class="login-sub">The Cierto: QR Bingo</div>
+    <div class="field-group">
+      <label class="field-label" for="inp-user">Username</label>
+      <input class="field-input" id="inp-user" type="text" placeholder="Enter username" autocomplete="username" />
+    </div>
+    <div class="field-group">
+      <label class="field-label" for="inp-pass">Password</label>
+      <input class="field-input" id="inp-pass" type="password" placeholder="Enter password" autocomplete="current-password" />
+    </div>
+    <div class="login-error" id="login-error">Invalid username or password.</div>
+    <button class="login-btn" id="login-btn">Sign In →</button>
+  </div>
+</div>
+
+<!-- Winner Screen -->
+<div id="screen-winner" class="page hidden">
+
+  <!-- Step 1: Registration -->
+  <div id="winner-register-box">
+    <div class="reg-trophy">🏆</div>
+    <div class="reg-title">YOU WON!</div>
+    <div class="reg-subtitle" id="reg-subtitle-text">You found the golden QR code!</div>
+    <div class="reg-notice">
+      <strong>📋 One more step!</strong> Enter your name and email or phone number to claim your bingo number.
+      If you win something at the raffle, you will be asked to <strong>repeat this information to our staff at the booth</strong> to verify your identity.
+    </div>
+    <div class="reg-field">
+      <label class="reg-label" for="reg-name">Full Name *</label>
+      <input class="reg-input" id="reg-name" type="text" placeholder="Jane Smith" autocomplete="name" />
+      <div class="reg-error-msg" id="reg-name-err">Please enter your name.</div>
+    </div>
+    <div class="reg-field">
+      <label class="reg-label" for="reg-contact">Email or Phone Number *</label>
+      <input class="reg-input" id="reg-contact" type="text" placeholder="jane@email.com  or  555-123-4567" autocomplete="email" />
+      <div class="reg-error-msg" id="reg-contact-err">Please enter your email or phone number.</div>
+    </div>
+    <button class="reg-submit-btn" id="reg-submit-btn">Claim My Bingo Number →</button>
+  </div>
+
+  <!-- Step 2: Bingo Reveal -->
+  <div id="winner-reveal-box">
+    <div class="star-burst">🏆</div>
+    <div class="win-badge">WINNER!</div>
+    <p class="win-sub" id="winner-sub-text"></p>
+    <div class="winner-name-display" id="winner-name-display"></div>
+    <div class="bingo-reveal-box">
+      <div class="bingo-reveal-label">Your Bingo Number</div>
+      <div id="bingo-ball-winner"></div>
+      <div class="raffle-hint" id="winner-hint-text"></div>
+    </div>
+    <div class="win-note" id="winner-note-text"></div>
+  </div>
+
+</div>
+
+<!-- Thanks -->
+<div id="screen-thanks" class="page hidden">
+  <div id="thanks-box">
+    <div class="thanks-icon">🔍</div>
+    <div class="thanks-title" id="thanks-title-text"></div>
+    <p class="thanks-sub" id="thanks-sub-text"></p>
+    <div class="tip-box" id="thanks-tip">
+      <div class="tip-label">💡 Tip</div>
+      <p class="tip-text" id="thanks-tip-text"></p>
+    </div>
+    <div class="code-tag" id="thanks-code-tag"></div>
+  </div>
+</div>
+
+<!-- Admin -->
+<div id="screen-admin" class="hidden">
+  <div id="admin-panel">
+    <div class="admin-header">
+      <div class="admin-logo">🔍</div>
+      <div>
+        <div class="admin-title">The Cierto: QR Bingo</div>
+        <div class="admin-sub">Admin Control Panel</div>
+      </div>
+      <button class="rand-btn" id="rand-btn">🎲 Randomize Winner</button>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="codes">📱 QR Codes</button>
+      <button class="tab-btn" data-tab="bingo">🎱 Bingo Caller</button>
+      <button class="tab-btn" data-tab="winners">🏆 Winners</button>
+      <button class="tab-btn" data-tab="logs">📋 Scan Log</button>
+      <button class="tab-btn" data-tab="settings">⚙️ Settings</button>
+    </div>
+
+    <!-- QR Codes -->
+    <div id="tab-codes">
+      <div class="winner-banner">
+        Current Winner: <span class="win-name" id="admin-winner-label">—</span>
+        <span class="win-pulse"></span>
+      </div>
+      <div class="code-grid" id="code-grid"></div>
+      <div class="qr-tip">💡 Copy each URL and paste into a free QR generator like <strong>qr-code-generator.com</strong> to print.</div>
+    </div>
+
+    <!-- Bingo Caller -->
+    <div id="tab-bingo" class="hidden">
+      <div class="bingo-caller-wrap">
+        <div class="bingo-caller-stage">
+          <div class="caller-label">Now Calling</div>
+          <div id="caller-display"><div class="caller-idle">Press "Draw" to call a number</div></div>
+          <div style="margin-top:22px;">
+            <div class="caller-label" style="margin-bottom:10px;">Previously Called</div>
+            <div class="caller-history" id="caller-history"></div>
+          </div>
+        </div>
+        <div class="caller-controls">
+          <button class="draw-btn" id="draw-btn">🎱 Draw Number</button>
+          <button class="reset-caller-btn" id="reset-caller-btn">Reset</button>
+          <span class="muted-text" id="caller-remaining"></span>
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:15px;margin-bottom:12px;color:var(--text);">Board — Called Numbers</div>
+          <div class="bingo-board" id="bingo-board"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Winners Roster -->
+    <div id="tab-winners" class="hidden">
+      <div class="log-header">
+        <div class="log-header-left">
+          <span class="muted-text" id="winners-count">0 winners registered</span>
+          <button class="export-btn" id="export-csv-btn">⬇ Export CSV</button>
+        </div>
+        <button class="clear-btn" id="clear-winners-btn">Clear All</button>
+      </div>
+      <div id="winners-container"><div class="empty-msg">No winners registered yet — get scanning!</div></div>
+    </div>
+
+    <!-- Scan Log -->
+    <div id="tab-logs" class="hidden">
+      <div class="log-header">
+        <span class="muted-text" id="log-count">0 scans recorded</span>
+        <button class="clear-btn" id="clear-logs-btn">Clear Logs</button>
+      </div>
+      <div id="log-list-container"><div class="empty-msg">No scans yet.</div></div>
+    </div>
+
+    <!-- Settings -->
+    <div id="tab-settings" class="hidden">
+
+      <div class="settings-section">
+        <div class="settings-title">🔢 Number of QR Codes</div>
+        <p class="settings-desc">Choose how many QR codes to distribute at your event. Changing this will update the grid and URL list immediately. <strong>Note:</strong> if you reduce the count, make sure the current winner code is within the new range.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="code-count-btn" data-count="6">6 Codes<br><span style="font-size:11px;opacity:.7;">3 × 2</span></button>
+          <button class="code-count-btn" data-count="9">9 Codes<br><span style="font-size:11px;opacity:.7;">3 × 3</span></button>
+          <button class="code-count-btn" data-count="12">12 Codes<br><span style="font-size:11px;opacity:.7;">4 × 3</span></button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div class="settings-title">📋 Winner Registration Form</div>
+            <p class="settings-desc" style="margin-bottom:0">When enabled, winners must enter their name and contact info before seeing their bingo number. Disable to show the bingo ball immediately with no form.</p>
+          </div>
+          <label class="toggle-wrap" id="reg-toggle-wrap">
+            <input type="checkbox" id="reg-toggle" />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-label" id="reg-toggle-label">On</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-title">🔗 Losing Code Redirect</div>
+        <p class="settings-desc">Redirect non-winning scans to a custom URL instead of the built-in "Keep Hunting" page. Leave blank to use the default.</p>
+        <div class="redirect-row">
+          <input class="redirect-input" id="redirect-input" type="url" placeholder="https://your-website.com/thanks" />
+          <button class="save-btn" id="save-redirect-btn">Save</button>
+          <button class="clear-btn" id="clear-redirect-btn">Clear</button>
+        </div>
+        <div class="redirect-status" id="redirect-status"></div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-title">✏️ Page Messages</div>
+        <p class="settings-desc">Customize the text shown to participants. Changes save instantly. Click Preview to see how each page looks.</p>
+        <div class="msg-grid">
+          <div class="msg-col">
+            <div class="msg-col-label">🏆 Winner Page</div>
+            <div class="msg-field">
+              <label for="msg-win-sub">Subtitle (below "WINNER!")</label>
+              <input type="text" id="msg-win-sub" placeholder="You found the golden QR code!" />
+            </div>
+            <div class="msg-field">
+              <label for="msg-win-hint">Bingo ball hint</label>
+              <input type="text" id="msg-win-hint" placeholder="Screenshot this — mark it on your bingo card!" />
+            </div>
+            <div class="msg-field">
+              <label for="msg-win-note">Footer note</label>
+              <textarea id="msg-win-note" rows="2" placeholder="🔀 The winning QR code has moved. Keep playing!"></textarea>
+            </div>
+            <div class="msg-actions">
+              <button class="save-btn" id="save-win-msg-btn">Save</button>
+              <button class="preview-btn" id="preview-win-btn">Preview →</button>
+            </div>
+          </div>
+          <div class="msg-col">
+            <div class="msg-col-label">🔍 Losing Page <span style="color:var(--muted);font-weight:400;font-size:12px">(built-in only)</span></div>
+            <div class="msg-field">
+              <label for="msg-lose-title">Heading</label>
+              <input type="text" id="msg-lose-title" placeholder="Keep Hunting!" />
+            </div>
+            <div class="msg-field">
+              <label for="msg-lose-sub">Main message</label>
+              <textarea id="msg-lose-sub" rows="2" placeholder="Not the winner this time — the golden QR code is out there. Keep scanning!"></textarea>
+            </div>
+            <div class="msg-field">
+              <label for="msg-lose-tip">Tip text</label>
+              <textarea id="msg-lose-tip" rows="2" placeholder="Once someone finds the winner, the golden code moves to a brand-new location!"></textarea>
+            </div>
+            <div class="msg-actions">
+              <button class="save-btn" id="save-lose-msg-btn">Save</button>
+              <button class="preview-btn" id="preview-lose-btn">Preview →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal-backdrop hidden" id="preview-modal">
+  <div class="modal-shell">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title">Preview</span>
+      <button class="modal-close" id="modal-close">✕ Close</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const TOTAL_CODES = 12;
+const CREDENTIALS = { 'admin test': '1234' };
+
+const SK_WINNER   = 'scavenger-winner-code';
+const SK_LOGS     = 'scavenger-scan-logs';
+const SK_WINNERS  = 'scavenger-winners-roster';   // NEW: full winner registrations
+const SK_REDIRECT = 'scavenger-lose-redirect';
+const SK_CALLER   = 'scavenger-bingo-called';
+const SK_MSG_WIN  = 'scavenger-msg-winner';
+const SK_MSG_LOSE = 'scavenger-msg-loser';
+const SK_REG_ON   = 'scavenger-registration-on';
+const SK_CODE_COUNT = 'scavenger-code-count';
+
+function getTotalCodes(){ const v=parseInt(lsGet(SK_CODE_COUNT,'12')); return [6,9,12].includes(v)?v:12; }
+
+const DEFAULT_WIN = {
+  sub:  'You found the golden QR code!',
+  hint: 'Screenshot this — mark it on your bingo card at the raffle!',
+  note: '🔀 The winning QR code has moved to a new location. Keep playing!'
+};
+const DEFAULT_LOSE = {
+  title: 'Keep Hunting!',
+  sub:   'Not the winner this time — the golden QR code is out there. Keep scanning!',
+  tip:   'Once someone finds the winner, the golden code moves to a brand-new location!'
+};
+
+// ── Bingo ────────────────────────────────────────────────────────
+const BINGO_COLS = [
+  { letter:'B', min:1,  max:15,  color:'#2563eb' },
+  { letter:'I', min:16, max:30,  color:'#9333ea' },
+  { letter:'N', min:31, max:45,  color:'#ea580c' },
+  { letter:'G', min:46, max:60,  color:'#16a34a' },
+  { letter:'O', min:61, max:75,  color:'#dc2626' },
+];
+const FULL_POOL = Array.from({length:75},(_,i)=>i+1);
+function bingoCol(n){ return BINGO_COLS.find(c=>n>=c.min&&n<=c.max); }
+function ballHTML(n,cls){
+  const c=bingoCol(n);
+  return `<div class="${cls}" style="background:${c.color}"><span class="ball-letter">${c.letter}</span><span class="ball-number">${n}</span></div>`;
+}
+
+// ── Storage ──────────────────────────────────────────────────────
+function lsGet(k,fb=null){ try{const v=localStorage.getItem(k);return v!==null?v:fb;}catch{return fb;} }
+function lsSet(k,v){ try{localStorage.setItem(k,v);}catch{} }
+function lsGetJ(k,fb){ try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):fb;}catch{return fb;} }
+function lsSetJ(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch{} }
+
+function getWinner()      { const v=parseInt(lsGet(SK_WINNER));return isNaN(v)?null:v; }
+function saveWinner(c)    { lsSet(SK_WINNER,String(c)); }
+function getLogs()        { return lsGetJ(SK_LOGS,[]); }
+function addLog(e)        { const l=getLogs();l.unshift(e);lsSetJ(SK_LOGS,l.slice(0,100)); }
+function getWinners()     { return lsGetJ(SK_WINNERS,[]); }
+function addWinnerRecord(r){ const w=getWinners();w.unshift(r);lsSetJ(SK_WINNERS,w); }
+function getRedirect()    { return lsGet(SK_REDIRECT,''); }
+function saveRedirect(u)  { lsSet(SK_REDIRECT,u); }
+function getCalled()      { return lsGetJ(SK_CALLER,[]); }
+function saveCalled(a)    { lsSetJ(SK_CALLER,a); }
+function getWinMsg()      { return lsGetJ(SK_MSG_WIN,DEFAULT_WIN); }
+function getLoseMsg()     { return lsGetJ(SK_MSG_LOSE,DEFAULT_LOSE); }
+function getRegistrationOn(){ return lsGet(SK_REG_ON,'1') !== '0'; }
+
+// ── Util ─────────────────────────────────────────────────────────
+function pickNewWinner(ex=null){
+  const total=getTotalCodes();
+  let n; do{n=Math.floor(Math.random()*total)+1;}while(n===ex&&total>1); return n;
+}
+function getUrlCode(){
+  const c=parseInt(new URLSearchParams(location.search).get('code'));
+  return(!isNaN(c)&&c>=1&&c<=getTotalCodes())?c:null;
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function or(v,d){ return (v&&v.trim())?v.trim():d; }
+
+// ── Screens ──────────────────────────────────────────────────────
+const SCREENS=['loading','login','winner','thanks','admin'];
+function show(name){ SCREENS.forEach(s=>document.getElementById('screen-'+s).classList.toggle('hidden',s!==name)); }
+
+// ── Login ────────────────────────────────────────────────────────
+function initLogin(){
+  const box=document.getElementById('login-box');
+  const user=document.getElementById('inp-user');
+  const pass=document.getElementById('inp-pass');
+  const err=document.getElementById('login-error');
+  function attempt(){
+    if(CREDENTIALS[user.value.trim().toLowerCase()]===pass.value){ initAdmin(); show('admin'); }
+    else{
+      err.style.display='block';
+      box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake');
+      setTimeout(()=>box.classList.remove('shake'),400);
+    }
+  }
+  document.getElementById('login-btn').addEventListener('click',attempt);
+  [user,pass].forEach(el=>el.addEventListener('keydown',e=>{ if(e.key==='Enter') attempt(); }));
+  [user,pass].forEach(el=>el.addEventListener('input',()=>{ err.style.display='none'; }));
+}
+
+// ── Winner page ──────────────────────────────────────────────────
+// Holds temp state between registration step and reveal step
+let _pendingWinCode = null;
+let _pendingBingoNum = null;
+
+function showWinner(code){
+  if(getWinner()!==code){ showThanks(code); return; }
+
+  // Pick bingo number and rotate winner NOW (before form, so no double-award on refresh)
+  const n = FULL_POOL[Math.floor(Math.random()*75)];
+  _pendingWinCode  = code;
+  _pendingBingoNum = n;
+  saveWinner(pickNewWinner(code)); // rotate immediately
+
+  // Show registration form OR go straight to reveal
+  const msg=getWinMsg();
+  document.getElementById('reg-subtitle-text').textContent = or(msg.sub, DEFAULT_WIN.sub);
+
+  if(getRegistrationOn()){
+    document.getElementById('winner-register-box').style.display='block';
+    document.getElementById('winner-reveal-box').style.display='none';
+    show('winner');
+
+    // Wire up submit
+    const btn=document.getElementById('reg-submit-btn');
+    const newBtn=btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn,btn);
+    newBtn.addEventListener('click', submitRegistration);
+
+    ['reg-name','reg-contact'].forEach(id=>{
+      const el=document.getElementById(id);
+      el.value='';
+      const newEl=el.cloneNode(true);
+      el.parentNode.replaceChild(newEl,el);
+      document.getElementById(id).addEventListener('keydown',e=>{ if(e.key==='Enter') submitRegistration(); });
+    });
+
+    document.getElementById('reg-name-err').style.display='none';
+    document.getElementById('reg-contact-err').style.display='none';
+    document.getElementById('reg-name').classList.remove('error');
+    document.getElementById('reg-contact').classList.remove('error');
+  } else {
+    // Skip form — log and reveal immediately
+    const c = bingoCol(n);
+    const record = { ts:Date.now(), code, name:'', contact:'', bingo:c.letter+n, bingoNum:n };
+    addWinnerRecord(record);
+    addLog({ ts:record.ts, code, result:'WIN', bingo:c.letter+n });
+    document.getElementById('winner-sub-text').textContent  = or(msg.sub,  DEFAULT_WIN.sub);
+    document.getElementById('winner-hint-text').textContent = or(msg.hint, DEFAULT_WIN.hint);
+    document.getElementById('winner-note-text').textContent = or(msg.note, DEFAULT_WIN.note);
+    document.getElementById('winner-name-display').textContent = '';
+    document.getElementById('bingo-ball-winner').innerHTML = ballHTML(n,'bingo-ball-large');
+    document.getElementById('winner-register-box').style.display='none';
+    document.getElementById('winner-reveal-box').style.display='block';
+    show('winner');
+  }
+}
+
+function submitRegistration(){
+  const nameEl    = document.getElementById('reg-name');
+  const contactEl = document.getElementById('reg-contact');
+  const nameErr   = document.getElementById('reg-name-err');
+  const contactErr= document.getElementById('reg-contact-err');
+  const submitBtn = document.getElementById('reg-submit-btn');
+
+  let valid=true;
+  if(!nameEl.value.trim()){
+    nameEl.classList.add('error'); nameErr.style.display='block'; valid=false;
+  } else { nameEl.classList.remove('error'); nameErr.style.display='none'; }
+  if(!contactEl.value.trim()){
+    contactEl.classList.add('error'); contactErr.style.display='block'; valid=false;
+  } else { contactEl.classList.remove('error'); contactErr.style.display='none'; }
+  if(!valid) return;
+
+  const name    = nameEl.value.trim();
+  const contact = contactEl.value.trim();
+  const n       = _pendingBingoNum;
+  const code    = _pendingWinCode;
+  const c       = bingoCol(n);
+
+  // Save full record
+  const record = { ts:Date.now(), code, name, contact, bingo: c.letter+n, bingoNum: n };
+  addWinnerRecord(record);
+  addLog({ ts:record.ts, code, result:'WIN', bingo:c.letter+n, name });
+
+  // Disable button to prevent double submit
+  submitBtn.disabled=true;
+
+  // Show reveal
+  const msg=getWinMsg();
+  document.getElementById('winner-sub-text').textContent  = or(msg.sub,  DEFAULT_WIN.sub);
+  document.getElementById('winner-hint-text').textContent = or(msg.hint, DEFAULT_WIN.hint);
+  document.getElementById('winner-note-text').textContent = or(msg.note, DEFAULT_WIN.note);
+  document.getElementById('winner-name-display').textContent = '👋 Hi, ' + name + '!';
+  document.getElementById('bingo-ball-winner').innerHTML  = ballHTML(n,'bingo-ball-large');
+
+  document.getElementById('winner-register-box').style.display='none';
+  document.getElementById('winner-reveal-box').style.display='block';
+}
+
+// ── Thanks page ──────────────────────────────────────────────────
+function showThanks(code){
+  addLog({ts:Date.now(),code,result:'MISS'});
+  const rd=getRedirect();
+  document.getElementById('thanks-code-tag').textContent='Code #'+code;
+  if(rd){
+    document.getElementById('thanks-title-text').textContent='Keep Hunting!';
+    document.getElementById('thanks-sub-text').textContent='Not the winner — redirecting you now...';
+    document.getElementById('thanks-tip').classList.add('hidden');
+    show('thanks'); setTimeout(()=>{ location.href=rd; },1800);
+  } else {
+    const msg=getLoseMsg();
+    document.getElementById('thanks-title-text').textContent = or(msg.title, DEFAULT_LOSE.title);
+    document.getElementById('thanks-sub-text').textContent   = or(msg.sub,   DEFAULT_LOSE.sub);
+    document.getElementById('thanks-tip-text').textContent   = or(msg.tip,   DEFAULT_LOSE.tip);
+    document.getElementById('thanks-tip').classList.remove('hidden');
+    show('thanks');
+  }
+}
+
+// ── Admin ────────────────────────────────────────────────────────
+let adminInterval=null;
+
+function initAdmin(){
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      ['codes','bingo','winners','logs','settings'].forEach(t=>{
+        document.getElementById('tab-'+t).classList.toggle('hidden',t!==btn.dataset.tab);
+      });
+    });
+  });
+
+  document.getElementById('rand-btn').addEventListener('click',()=>{ saveWinner(pickNewWinner(getWinner())); renderAdmin(); });
+  document.getElementById('clear-logs-btn').addEventListener('click',()=>{
+    if(!confirm('Clear all scan logs?')) return; lsSetJ(SK_LOGS,[]); renderAdmin();
+  });
+  document.getElementById('clear-winners-btn').addEventListener('click',()=>{
+    if(!confirm('Clear all winner records? This cannot be undone.')) return; lsSetJ(SK_WINNERS,[]); renderAdmin();
+  });
+  document.getElementById('export-csv-btn').addEventListener('click', exportCSV);
+
+  // Code count buttons
+  function refreshCountBtns(){
+    const current=getTotalCodes();
+    document.querySelectorAll('.code-count-btn').forEach(b=>{
+      b.classList.toggle('active', parseInt(b.dataset.count)===current);
+    });
+  }
+  document.querySelectorAll('.code-count-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      const newCount=parseInt(b.dataset.count);
+      lsSet(SK_CODE_COUNT, String(newCount));
+      // If current winner is out of range, re-randomize
+      const w=getWinner();
+      if(!w||w>newCount) saveWinner(pickNewWinner());
+      refreshCountBtns();
+      renderAdmin();
+    });
+  });
+  refreshCountBtns();
+
+  // Registration toggle
+  const regToggle = document.getElementById('reg-toggle');
+  const regLabel  = document.getElementById('reg-toggle-label');
+  regToggle.checked = getRegistrationOn();
+  regLabel.textContent = regToggle.checked ? 'On' : 'Off';
+  regToggle.addEventListener('change', () => {
+    lsSet(SK_REG_ON, regToggle.checked ? '1' : '0');
+    regLabel.textContent = regToggle.checked ? 'On' : 'Off';
+  });
+
+  // Redirect
+  const rdInput=document.getElementById('redirect-input');
+  rdInput.value=getRedirect(); renderRedirectStatus();
+  document.getElementById('save-redirect-btn').addEventListener('click',()=>{
+    saveRedirect(rdInput.value.trim());
+    const b=document.getElementById('save-redirect-btn');
+    b.textContent='✓ Saved!'; setTimeout(()=>{ b.textContent='Save'; },2000);
+    renderRedirectStatus();
+  });
+  document.getElementById('clear-redirect-btn').addEventListener('click',()=>{ rdInput.value=''; saveRedirect(''); renderRedirectStatus(); });
+
+  // Messages
+  const wm=getWinMsg();
+  document.getElementById('msg-win-sub').value  = wm.sub  !==DEFAULT_WIN.sub  ? wm.sub  : '';
+  document.getElementById('msg-win-hint').value = wm.hint !==DEFAULT_WIN.hint ? wm.hint : '';
+  document.getElementById('msg-win-note').value = wm.note !==DEFAULT_WIN.note ? wm.note : '';
+  const lm=getLoseMsg();
+  document.getElementById('msg-lose-title').value = lm.title!==DEFAULT_LOSE.title ? lm.title : '';
+  document.getElementById('msg-lose-sub').value   = lm.sub  !==DEFAULT_LOSE.sub   ? lm.sub   : '';
+  document.getElementById('msg-lose-tip').value   = lm.tip  !==DEFAULT_LOSE.tip   ? lm.tip   : '';
+
+  document.getElementById('save-win-msg-btn').addEventListener('click',()=>{
+    lsSetJ(SK_MSG_WIN,{
+      sub:  document.getElementById('msg-win-sub').value.trim()  || DEFAULT_WIN.sub,
+      hint: document.getElementById('msg-win-hint').value.trim() || DEFAULT_WIN.hint,
+      note: document.getElementById('msg-win-note').value.trim() || DEFAULT_WIN.note,
+    });
+    const b=document.getElementById('save-win-msg-btn'); b.textContent='✓ Saved!'; setTimeout(()=>{ b.textContent='Save'; },2000);
+  });
+  document.getElementById('save-lose-msg-btn').addEventListener('click',()=>{
+    lsSetJ(SK_MSG_LOSE,{
+      title: document.getElementById('msg-lose-title').value.trim() || DEFAULT_LOSE.title,
+      sub:   document.getElementById('msg-lose-sub').value.trim()   || DEFAULT_LOSE.sub,
+      tip:   document.getElementById('msg-lose-tip').value.trim()   || DEFAULT_LOSE.tip,
+    });
+    const b=document.getElementById('save-lose-msg-btn'); b.textContent='✓ Saved!'; setTimeout(()=>{ b.textContent='Save'; },2000);
+  });
+
+  document.getElementById('preview-win-btn').addEventListener('click',()=>openPreview('winner'));
+  document.getElementById('preview-lose-btn').addEventListener('click',()=>openPreview('loser'));
+  document.getElementById('modal-close').addEventListener('click',closePreview);
+  document.getElementById('preview-modal').addEventListener('click',e=>{ if(e.target===e.currentTarget) closePreview(); });
+
+  initCaller();
+  renderAdmin();
+  if(adminInterval) clearInterval(adminInterval);
+  adminInterval=setInterval(renderAdmin,3000);
+}
+
+// ── CSV Export ───────────────────────────────────────────────────
+function exportCSV(){
+  const winners=getWinners();
+  if(!winners.length){ alert('No winners to export yet.'); return; }
+  const header='Time,Name,Contact,Bingo Number,QR Code\n';
+  const rows=winners.map(w=>[
+    new Date(w.ts).toLocaleString(),
+    '"'+w.name.replace(/"/g,'""')+'"',
+    '"'+w.contact.replace(/"/g,'""')+'"',
+    w.bingo,
+    'Code #'+w.code
+  ].join(',')).join('\n');
+  const blob=new Blob([header+rows],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='scavenger-hunt-winners.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Preview Modal ─────────────────────────────────────────────────
+const SAMPLE_COL = BINGO_COLS[2]; // N orange
+const SAMPLE_N   = 42;
+
+function openPreview(type){
+  const modal=document.getElementById('preview-modal');
+  const body=document.getElementById('modal-body');
+  document.getElementById('modal-title').textContent=type==='winner'?'Preview — Winner Page':'Preview — Losing Page';
+
+  if(type==='winner'){
+    const msg={
+      sub:  document.getElementById('msg-win-sub').value.trim()  || DEFAULT_WIN.sub,
+      hint: document.getElementById('msg-win-hint').value.trim() || DEFAULT_WIN.hint,
+      note: document.getElementById('msg-win-note').value.trim() || DEFAULT_WIN.note,
+    };
+    body.innerHTML=`
+      <div class="preview-winner-wrap">
+        <div class="star-burst">🏆</div>
+        <div class="win-badge">WINNER!</div>
+        <p class="win-sub">${esc(msg.sub)}</p>
+        <div class="preview-reg-notice">
+          <strong>📋 One more step!</strong> Enter your name and email or phone number to claim your bingo number.
+          If you win something at the raffle, you will be asked to <strong>repeat this information to our staff at the booth</strong>.
+        </div>
+        <p style="color:var(--muted);font-size:12px;text-align:center;margin-bottom:16px;font-style:italic;">
+          [After entering name &amp; contact, the bingo ball is revealed:]
+        </p>
+        <div class="preview-bingo-box">
+          <div style="color:var(--win);font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:12px;">Your Bingo Number</div>
+          <div class="preview-ball" style="background:${SAMPLE_COL.color}">
+            <span class="ball-letter">${SAMPLE_COL.letter}</span>
+            <span class="ball-number">${SAMPLE_N}</span>
+          </div>
+          <div class="preview-raffle-hint">${esc(msg.hint)}</div>
+        </div>
+        <div class="preview-win-note">${esc(msg.note)}</div>
+      </div>`;
+  } else {
+    const msg={
+      title: document.getElementById('msg-lose-title').value.trim() || DEFAULT_LOSE.title,
+      sub:   document.getElementById('msg-lose-sub').value.trim()   || DEFAULT_LOSE.sub,
+      tip:   document.getElementById('msg-lose-tip').value.trim()   || DEFAULT_LOSE.tip,
+    };
+    body.innerHTML=`
+      <div class="preview-thanks-wrap">
+        <div class="thanks-icon">🔍</div>
+        <div class="thanks-title">${esc(msg.title)}</div>
+        <p class="thanks-sub">${esc(msg.sub)}</p>
+        <div class="tip-box">
+          <div class="tip-label">💡 Tip</div>
+          <p class="tip-text">${esc(msg.tip)}</p>
+        </div>
+        <div class="code-tag">Code #7</div>
+      </div>`;
+  }
+  modal.classList.remove('hidden');
+}
+function closePreview(){ document.getElementById('preview-modal').classList.add('hidden'); }
+
+// ── Bingo Caller ─────────────────────────────────────────────────
+function initCaller(){
+  renderCaller();
+  document.getElementById('draw-btn').addEventListener('click',()=>{
+    const called=getCalled();
+    const pool=FULL_POOL.filter(n=>!called.includes(n));
+    if(!pool.length) return;
+    const pick=pool[Math.floor(Math.random()*pool.length)];
+    called.push(pick); saveCalled(called); renderCaller(pick);
+  });
+  document.getElementById('reset-caller-btn').addEventListener('click',()=>{
+    if(!confirm('Reset the bingo caller? All called numbers will be cleared.')) return;
+    saveCalled([]); renderCaller();
+  });
+}
+
+function renderCaller(justCalled=null){
+  const called=getCalled();
+  const remaining=FULL_POOL.filter(n=>!called.includes(n));
+  document.getElementById('caller-remaining').textContent=remaining.length+' of 75 remaining';
+  document.getElementById('draw-btn').disabled=!remaining.length;
+
+  const display=document.getElementById('caller-display');
+  if(justCalled!=null){
+    const c=bingoCol(justCalled);
+    display.innerHTML=`<div class="caller-ball animate" style="background:${c.color}"><span class="ball-letter">${c.letter}</span><span class="ball-number">${justCalled}</span></div>`;
+  } else if(called.length){
+    const last=called[called.length-1];const c=bingoCol(last);
+    display.innerHTML=`<div class="caller-ball" style="background:${c.color}"><span class="ball-letter">${c.letter}</span><span class="ball-number">${last}</span></div>`;
+  } else {
+    display.innerHTML='<div class="caller-idle">Press "Draw" to call a number</div>';
+  }
+
+  const hist=document.getElementById('caller-history');
+  const prev=[...called].reverse().slice(1);
+  hist.innerHTML=prev.length
+    ?prev.map(n=>{ const c=bingoCol(n); return `<div class="caller-history-ball" style="background:${c.color}"><span class="ball-letter">${c.letter}</span><span class="ball-number">${n}</span></div>`; }).join('')
+    :'<span style="color:rgba(255,255,255,.4);font-size:13px">None yet</span>';
+
+  const board=document.getElementById('bingo-board');
+  board.innerHTML='';
+  BINGO_COLS.forEach(col=>{
+    const h=document.createElement('div');
+    h.className='board-header';h.style.background=col.color;h.textContent=col.letter;
+    board.appendChild(h);
+  });
+  for(let row=0;row<15;row++){
+    BINGO_COLS.forEach(col=>{
+      const n=col.min+row;
+      const isCalled=called.includes(n);
+      const cell=document.createElement('div');
+      cell.className='board-cell'+(isCalled?' called':'');
+      if(isCalled) cell.style.background=col.color;
+      cell.textContent=n;
+      board.appendChild(cell);
+    });
+  }
+}
+
+// ── Render Admin ─────────────────────────────────────────────────
+function renderAdmin(){
+  if(!getWinner()) saveWinner(pickNewWinner());
+  const winner=getWinner();
+  const base=location.origin+location.pathname;
+  document.getElementById('admin-winner-label').textContent=winner?'Code #'+winner:'None set';
+
+  // Code grid
+  const total=getTotalCodes();
+  const cols = total===6?3 : total===9?3 : 4;
+  const grid=document.getElementById('code-grid');
+  grid.style.gridTemplateColumns=`repeat(${cols}, 1fr)`;
+  grid.innerHTML='';
+  for(let i=1;i<=total;i++){
+    const isW=(i===winner);
+    const url=base+'?code='+i;
+    const card=document.createElement('div');
+    card.className='code-card'+(isW?' is-winner':'');
+    card.innerHTML='<div class="code-num">#'+i+'</div>'+
+      (isW?'<div class="win-tag">★ WINNER</div>':'')+
+      '<div class="code-actions"><button class="copy-btn" data-url="'+esc(url)+'">Copy URL</button>'+
+      (!isW?'<button class="set-win-btn" data-code="'+i+'">Set Winner</button>':'')+
+      '</div>';
+    grid.appendChild(card);
+  }
+  grid.querySelectorAll('.copy-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      navigator.clipboard.writeText(b.dataset.url).catch(()=>{});
+      b.textContent='Copied!';setTimeout(()=>{ b.textContent='Copy URL'; },1500);
+    });
+  });
+  grid.querySelectorAll('.set-win-btn').forEach(b=>{
+    b.addEventListener('click',()=>{ saveWinner(parseInt(b.dataset.code)); renderAdmin(); });
+  });
+
+  // Winners roster
+  const winners=getWinners();
+  document.getElementById('winners-count').textContent=winners.length+' winner'+(winners.length!==1?'s':'')+' registered';
+  const wc=document.getElementById('winners-container');
+  if(!winners.length){
+    wc.innerHTML='<div class="empty-msg">No winners registered yet — get scanning!</div>';
+  } else {
+    const wrap=document.createElement('div'); wrap.className='roster-wrap';
+    const table=document.createElement('table'); table.className='roster-table';
+    table.innerHTML=`<thead><tr>
+      <th>#</th><th>Time</th><th>Name &amp; Contact</th><th>Bingo Ball</th><th>QR Code</th>
+    </tr></thead>`;
+    const tbody=document.createElement('tbody');
+    winners.forEach((w,i)=>{
+      const c=bingoCol(w.bingoNum);
+      const tr=document.createElement('tr');
+      tr.innerHTML=
+        '<td style="color:var(--muted);font-size:12px;">'+(i+1)+'</td>'+
+        '<td class="roster-time">'+new Date(w.ts).toLocaleTimeString()+'<br><span style="font-size:11px">'+new Date(w.ts).toLocaleDateString()+'</span></td>'+
+        '<td><div class="roster-name">'+esc(w.name)+'</div><div class="roster-contact">'+esc(w.contact)+'</div></td>'+
+        '<td style="text-align:center"><div class="roster-ball" style="background:'+c.color+'"><span class="ball-letter">'+c.letter+'</span><span class="ball-number">'+w.bingoNum+'</span></div></td>'+
+        '<td class="roster-code">Code #'+w.code+'</td>';
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    wc.innerHTML=''; wc.appendChild(wrap);
+  }
+
+  // Logs
+  const logs=getLogs();
+  document.getElementById('log-count').textContent=logs.length+' scan'+(logs.length!==1?'s':'')+' (auto-refreshes every 3s)';
+  const lc=document.getElementById('log-list-container');
+  if(!logs.length){ lc.innerHTML='<div class="empty-msg">No scans yet.</div>'; }
+  else {
+    const list=document.createElement('div'); list.className='log-list';
+    logs.forEach(l=>{
+      const isW=l.result==='WIN';
+      const row=document.createElement('div'); row.className='log-row '+(isW?'win':'miss');
+      let bingoSpan='';
+      if(l.bingo){ const num=parseInt(l.bingo.slice(1));const c=bingoCol(num); if(c) bingoSpan='<span class="log-bingo" style="color:'+c.color+'">'+esc(l.bingo)+'</span>'; }
+      const nameSpan=l.name?'<span style="color:var(--text);font-weight:600">'+esc(l.name)+'</span>':'';
+      row.innerHTML='<span class="log-time">'+new Date(l.ts).toLocaleTimeString()+'</span>'+
+        '<span class="log-code">Code #'+l.code+'</span>'+
+        '<span class="log-badge '+(isW?'win':'miss')+'">'+(isW?'★ WIN':'MISS')+'</span>'+
+        bingoSpan+nameSpan;
+      list.appendChild(row);
+    });
+    lc.innerHTML=''; lc.appendChild(list);
+  }
+}
+
+function renderRedirectStatus(){
+  const url=getRedirect();
+  document.getElementById('redirect-status').innerHTML=url
+    ?'<span class="status-active">● Active</span> — losing scans redirect to <span class="hl">'+esc(url)+'</span>'
+    :'<span style="color:var(--muted)">● Inactive — using built-in page</span>';
+}
+
+// ── Boot ─────────────────────────────────────────────────────────
+function boot(){
+  const code=getUrlCode();
+  if(!code){ initLogin(); show('login'); return; }
+  if(!getWinner()) saveWinner(pickNewWinner());
+  const result=new URLSearchParams(location.search).get('result');
+  if(result==='thanks') showThanks(code);
+  else if(code===getWinner()) showWinner(code);
+  else showThanks(code);
+}
+
+boot();
+</script>
+</body>
+</html>
